@@ -1,0 +1,134 @@
+     1                                  ; Applications linear-feedback shift register
+     2                                  ; Author: Lukasz Juraszek
+     3                                  ; Date November 2, 2016
+     4                                  ; run application this way:
+     5                                  ; nasm printer.asm -felf
+     6                                  ; gcc printer.o -o printer
+     7                                  
+     8                                  section .bss
+     9                                  section .data
+    10 00000000 446F6E652E00            	Msg db "Done.",0		; Message used for testing when code has completed
+    11 00000006 256900                  	format db "%i",0		; formatter to print out integers
+    12 00000009 25630A00                	charFormat db "%c",10,0		; formatter to print out characters
+    13 0000000D 257300                  	strFormat db "%s",0		; formatter to print out strings
+    14 00000010 25307800                	hexFormat db "%0x",0		; formatter to print out hexadecimal values
+    15 00000014 08                      	counter db 8
+    16                                  section .text
+    17                                  	extern printf			; external glibc metod printff
+    18                                  	global main
+    19                                  main:
+    20 00000000 31DB                    	xor ebx,ebx			; clear up register ebx, preparing for use
+    21 00000002 80C301                  	add bl,1			; Operations will be on 8-bit register
+    22                                  					; This is my initial value 0000 0001b
+    23                                  
+    24 00000005 B901000000              	mov ecx,1			; number of linear shifts
+    25                                  function_loop:				; function_loop executes specified number of shifts
+    26 0000000A 53                      	push ebx			; passes argument
+    27 0000000B E88D000000              	call myFunction			; invokes shift function
+    28 00000010 D0EB                    	shr bl,1			; removes the LSB - least sginifant bit
+    29 00000012 01C3                    	add ebx,eax			; adds the returning bit to MSB
+    30 00000014 83C404                  	add esp,4			; fixing stack
+    31 00000017 E2F1                    	loop function_loop		; repeat # of times
+    32                                  
+    33                                  ;	push ebx			; test
+    34                                  ;	push format			; test
+    35                                  ;	call printf			; test
+    36                                  ;	add esp,8			; test
+    37                                  
+    38                                  
+    39                                  
+    40 00000019 53                      	push ebx			; store the shifted value on the stack
+    41                                  bit_print:				; bit printer
+    42 0000001A D0E3                    	shl bl,1			; bits have to be printed in order beginning with first
+    43 0000001C 7224                    	jc print_one			; if the MSB was 1, then the carry flag will be set to true, print 1
+    44 0000001E B800000000              	mov eax,0			; else print 0
+    45 00000023 50                      	push eax			; passing of the zero
+    46 00000024 68[06000000]            	push format			; pass formatter
+    47 00000029 E8(00000000)            	call printf			; function invocation
+    48 0000002E 83C408                  	add esp,8			; fix stack
+    49                                  	
+    50 00000031 FE0D[14000000]          	dec byte [counter]		; decrement number of bits left to print
+    51 00000037 803D[14000000]00        	cmp byte [counter],0		; are we done printing all 8 bits?
+    52 0000003E 7426                    	je print_b			; if yes, print b and print in hexadecimal form
+    53 00000040 EBD8                    	jmp bit_print			; else print the next bit
+    54                                  print_one:				; function printing one
+    55 00000042 B801000000              	mov eax,1			; passing the argument 1
+    56 00000047 50                      	push eax			; pushing the argument onto the stack
+    57 00000048 68[06000000]            	push format			; pushing the formatted
+    58 0000004D E8(00000000)            	call printf			; function invocation
+    59 00000052 83C408                  	add esp,8			; fix stack
+    60                                  	
+    61 00000055 FE0D[14000000]          	dec byte [counter]		; are we done printing bits?
+    62 0000005B 803D[14000000]00        	cmp byte [counter],0		; are we?
+    63 00000062 7402                    	je print_b			; if yes, print b
+    64 00000064 EBB4                    	jmp bit_print			; else print next bit
+    65                                  	
+    66                                  print_b:				; values in binary are followed by character 'b'
+    67 00000066 B862000000              	mov eax,'b'			; move the character 'b' to register eax
+    68 0000006B 50                      	push eax			; pass the argument
+    69 0000006C 68[09000000]            	push charFormat			; pass the character formatter
+    70 00000071 E8(00000000)            	call printf			; function invocation
+    71 00000076 83C408                  	add esp,8			; fix the stack
+    72                                  
+    73                                  hex_print:				; Now, we are printing the shifted value in Hexadecimal form
+    74 00000079 5B                      	pop ebx				; we get the value that we saved on stack
+    75 0000007A 53                      	push ebx			; we pass it as an argument
+    76 0000007B 68[10000000]            	push hexFormat			; pass the hexadecimal formatter
+    77 00000080 E8(00000000)            	call printf			; function invocation
+    78 00000085 83C408                  	add esp,8			; fix the stack
+    79                                  
+    80 00000088 B868000000              	mov eax,'h'			; pass 'h' to indicate it's a hex number
+    81 0000008D 50                      	push eax			; pass the argument
+    82 0000008E 68[09000000]            	push charFormat			; push character formatter
+    83 00000093 E8(00000000)            	call printf			; function invocation
+    84 00000098 83C408                  	add esp,8			; fix the stack
+    85 0000009B EB37                    	jmp Done			; We are done
+    86                                  
+    87                                  myFunction:
+    88 0000009D 55                      	push ebp			; save stack
+    89 0000009E 89E5                    	mov ebp, esp			; set the base pointer
+    90                                  
+    91                                  
+    92                                  ; my function goes below
+    93                                  
+    94 000000A0 8B7508                  	mov esi,[ebp+8]		; accessing the argument 0000 00001b
+    95 000000A3 8B7D08                  	mov edi,[ebp+8]		; stoing argument for later use
+    96 000000A6 83E701                  	and edi,1		; edi holds the arguments bit 0
+    97                                  	
+    98 000000A9 C1EE02                  	shr esi, 2		; shifting right to access bit 2
+    99 000000AC 83E601                  	and esi,1		; clearing other bits
+   100                                  	
+   101 000000AF 31F7                    	xor edi, esi		; xor on the bits 0 and 2, storing result in edi
+   102                                  
+   103 000000B1 31F6                    	xor esi,esi		; preparing esi for next xor
+   104 000000B3 8B7508                  	mov esi,[ebp+8]
+   105 000000B6 83E608                  	and esi,8		; preserves bit 3
+   106 000000B9 C1EE03                  	shr esi,3		; accesses bit 3
+   107                                  
+   108 000000BC 31F7                    	xor edi, esi		; xor on bit 3 and previous result
+   109                                  
+   110 000000BE 31F6                    	xor esi, esi
+   111 000000C0 8B7508                  	mov esi,[ebp+8]
+   112 000000C3 83E610                  	and esi,16		; preserves bit 4
+   113 000000C6 C1EE04                  	shr esi,4		; accesses bit 4
+   114 000000C9 31F7                    	xor edi, esi		; xor on bit 4 and previous result
+   115                                  Test:	
+   116                                  ;	push edi
+   117                                  ;	push format
+   118                                  ;	call printf
+   119                                  ;	add esp,8
+   120                                  Return:
+   121 000000CB C1E707                  	shl edi,7		; set up the return value for easier addition to MSB
+   122 000000CE 89F8                    	mov eax,edi		; pass the result to the return value
+   123                                  
+   124                                  ; my function goes above
+   125 000000D0 89EC                    	mov esp, ebp		; restore the stack
+   126 000000D2 5D                      	pop ebp			; restore the stack
+   127 000000D3 C3                      	ret			; return to the caller
+   128                                  
+   129                                  Done:
+   130                                  ;	mov ebx,Msg
+   131                                  ;	push ebx
+   132                                  ;	push format
+   133                                  ;	call printf
+   134                                  ;	add esp,8
